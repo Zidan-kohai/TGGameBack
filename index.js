@@ -1,17 +1,22 @@
 const express = require("express");
-const path = require("path");
 const TelegramBot = require("node-telegram-bot-api");
-const TOKEN = "7221750293:AAGDQntrhoLnuZzxgdSkb11wC0cHuRa2gKI";
+
+const TOKEN = "7221750293:AAGDQntrhoLnuZzxgdSkb11wC0cHuRa2gKI"; // Замените на ваш токен
 const server = express();
-const bot = new TelegramBot(TOKEN, {
-    polling: true
-});
+const bot = new TelegramBot(TOKEN, { polling: true });
 const port = process.env.PORT || 5000;
 const gameName = "telegramClickerCoolBot";
 const queries = {};
-server.use(express.static(path.join(__dirname, 'Build')));
+
+// Корневой маршрут для проверки доступности сервера
+server.get('/', (req, res) => {
+    res.send('Server is running');
+});
+
+// Обработчики команд бота
 bot.onText(/help/, (msg) => bot.sendMessage(msg.from.id, "Say /game if you want to play."));
 bot.onText(/start|game/, (msg) => bot.sendGame(msg.from.id, gameName));
+
 bot.on("callback_query", function (query) {
     if (query.game_short_name !== gameName) {
         bot.answerCallbackQuery(query.id, "Sorry, '" + query.game_short_name + "' is not available.");
@@ -24,6 +29,7 @@ bot.on("callback_query", function (query) {
         });
     }
 });
+
 bot.on("inline_query", function (iq) {
     bot.answerInlineQuery(iq.id, [{
         type: "game",
@@ -31,6 +37,7 @@ bot.on("inline_query", function (iq) {
         game_short_name: gameName
     }]);
 });
+
 server.get("/highscore/:score", function (req, res, next) {
     if (!Object.hasOwnProperty.call(queries, req.query.id)) return next();
     let query = queries[req.query.id];
@@ -45,7 +52,17 @@ server.get("/highscore/:score", function (req, res, next) {
             inline_message_id: query.inline_message_id
         };
     }
-    bot.setGameScore(query.from.id, parseInt(req.params.score), options,
-        function (err, result) {});
+    bot.setGameScore(query.from.id, parseInt(req.params.score), options, function (err, result) {
+        if (err) {
+            console.error(err);
+            res.status(500).send('Error setting score');
+        } else {
+            res.send('Score updated');
+        }
+    });
 });
-server.listen(port);
+
+// Запуск сервера
+server.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+});
